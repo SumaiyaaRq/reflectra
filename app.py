@@ -22,7 +22,7 @@ if not secret_key:
     if os.environ.get("FLASK_ENV") == "production":
         raise RuntimeError("SECRET_KEY must be set in production.")
     secret_key = secrets.token_hex(32)
-
+app.secret_key = secret_key
 
 app.config['SESSION_COOKIE_SECURE'] = True
 app.config['SESSION_COOKIE_HTTPONLY'] = True
@@ -530,4 +530,4 @@ def api_model_info():
  
  
 if __name__ == "__main__":
-    app.run(debug=os.environ.get("FLASK_DEBUG") == "1")
+    app.run(debug=False)
