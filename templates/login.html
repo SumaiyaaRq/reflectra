@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In — Reflectra</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-card fade-in">
+            <div class="auth-header">
+                <div class="auth-icon">💝</div>
+                <h2>Welcome Back</h2>
+                <p style="color:#666;">Continue your emotional wellness journey</p>
+            </div>
+
+            <div class="form-group">
+                <label for="email">Email Address</label>
+                <input type="email" id="email" placeholder="your.email@example.com" required autocomplete="email">
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" placeholder="Enter your password" required autocomplete="current-password">
+            </div>
+
+            <button type="button" onclick="handleLogin()" class="btn btn-primary" style="width:100%;margin-top:1rem;">
+                Sign In 🔐
+            </button>
+
+            <div class="auth-links">
+                <p>Don't have an account? <a href="{{ url_for('register') }}">Create One</a></p>
+                <p style="margin-top:0.5rem;"><a href="{{ url_for('index') }}">← Back to Home</a></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    function handleLogin() {
+        const email = document.getElementById('email').value.trim();
+        const password = document.getElementById('password').value;
+        if (!email || !password) { alert('Please fill in all fields'); return; }
+
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = "{{ url_for('login') }}";
+        [['_csrf_token', '{{ csrf_token() }}'], ['email', email], ['password', password]].forEach(([n, v]) => {
+            const i = document.createElement('input');
+            i.type = 'hidden'; i.name = n; i.value = v;
+            form.appendChild(i);
+        });
+        document.body.appendChild(form);
+        form.submit();
+    }
+    document.addEventListener('keypress', e => { if (e.key === 'Enter') handleLogin(); });
+    </script>
+</body>
+</html>

@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% block title %}Home — Reflectra{% endblock %}
+
+{% block content %}
+<div class="fade-in">
+    <!-- Hero -->
+    <div style="position:relative;text-align:center;padding:3rem 2rem;border-radius:30px;
+        background:linear-gradient(135deg,rgba(108,99,255,0.1),rgba(255,107,157,0.1));
+        margin-bottom:3rem;overflow:hidden;">
+        <div class="floating-elements" aria-hidden="true">
+            <div class="float-elem" style="top:10%;left:10%;">💭</div>
+            <div class="float-elem" style="top:20%;right:15%;animation-delay:1.5s;">✨</div>
+            <div class="float-elem" style="bottom:15%;left:20%;animation-delay:3s;">🌟</div>
+            <div class="float-elem" style="bottom:20%;right:10%;animation-delay:4.5s;">💫</div>
+        </div>
+        <h1 style="font-size:3rem;position:relative;z-index:1;" id="greeting">Hello! 👋</h1>
+        <p style="font-size:1.2rem;color:#666;margin-bottom:2rem;position:relative;z-index:1;">
+            Ready to explore your emotions today?
+        </p>
+        <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;position:relative;z-index:1;">
+            <a href="{{ url_for('journal') }}" class="btn btn-primary" style="padding:1rem 2.5rem;font-size:1.05rem;">
+                ✍️ Start Journaling
+            </a>
+            <a href="{{ url_for('analytics') }}" class="btn btn-outline" style="padding:1rem 2.5rem;font-size:1.05rem;">
+                📊 View Analytics
+            </a>
+        </div>
+    </div>
+
+    <!-- Today's reflection card -->
+    <div class="card" style="background:linear-gradient(135deg,rgba(234,179,8,0.1),rgba(251,191,36,0.1));border:none;margin-bottom:2rem;">
+        <div style="display:flex;justify-content:space-between;align-items:start;gap:2rem;flex-wrap:wrap;">
+            <div style="flex:1;">
+                <h3 style="margin-bottom:1rem;color:#ca8a04;">💬 Today's Reflection</h3>
+                <p id="quote-text" style="font-size:1.15rem;font-style:italic;line-height:1.9;color:#333;">
+                    "{{ quote }}"
+                </p>
+                {% if latest_entry %}
+                <div style="margin-top:1.5rem;">
+                    <span class="emotion-badge {{ emotion }}" style="font-size:0.95rem;padding:0.6rem 1.2rem;">
+                        Recent mood: {{ emotion|capitalize }}
+                    </span>
+                </div>
+                {% endif %}
+            </div>
+            <div style="text-align:center;">
+                <div style="font-size:4rem;margin-bottom:0.5rem;">
+                    {% if emotion == 'happy' %}😊{% elif emotion == 'sad' %}😢
+                    {% elif emotion == 'anxious' %}😰{% elif emotion == 'angry' %}😠
+                    {% elif emotion == 'peaceful' %}😌{% elif emotion == 'excited' %}🤩
+                    {% else %}😐{% endif %}
+                </div>
+                <button onclick="newQuote()" class="btn btn-outline" style="padding:0.5rem 1rem;font-size:0.85rem;">
+                    🔄 New Quote
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Feature cards -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.5rem;margin-bottom:3rem;">
+        <div class="card hover-lift" style="cursor:pointer;text-align:center;
+            background:linear-gradient(135deg,rgba(99,102,241,0.05),rgba(139,92,246,0.05));
+            border:2px solid rgba(99,102,241,0.2);" onclick="location.href='{{ url_for('journal') }}'">
+            <div style="font-size:3.5rem;margin-bottom:1rem;">✍️</div>
+            <h3 style="margin-bottom:0.75rem;">Write &amp; Reflect</h3>
+            <p style="color:#666;line-height:1.7;margin-bottom:1rem;">Express your thoughts and get AI emotion analysis, theme extraction, and similar-entry search.</p>
+            <span class="btn btn-outline" style="display:inline-block;padding:0.7rem 1.5rem;">Start Writing →</span>
+        </div>
+        <div class="card hover-lift" style="cursor:pointer;text-align:center;
+            background:linear-gradient(135deg,rgba(236,72,153,0.05),rgba(244,114,182,0.05));
+            border:2px solid rgba(236,72,153,0.2);" onclick="location.href='{{ url_for('past_entries') }}'">
+            <div style="font-size:3.5rem;margin-bottom:1rem;">📚</div>
+            <h3 style="margin-bottom:0.75rem;">Your Journey</h3>
+            <p style="color:#666;line-height:1.7;margin-bottom:1rem;">Browse entries with search, filter, timeline and grid views. Export to CSV anytime.</p>
+            <span class="btn btn-outline" style="display:inline-block;padding:0.7rem 1.5rem;">View History →</span>
+        </div>
+        <div class="card hover-lift" style="cursor:pointer;text-align:center;
+            background:linear-gradient(135deg,rgba(34,197,94,0.05),rgba(74,222,128,0.05));
+            border:2px solid rgba(34,197,94,0.2);" onclick="location.href='{{ url_for('analytics') }}'">
+            <div style="font-size:3.5rem;margin-bottom:1rem;">📊</div>
+            <h3 style="margin-bottom:0.75rem;">Track Progress</h3>
+            <p style="color:#666;line-height:1.7;margin-bottom:1rem;">Rolling sentiment chart, mood forecast, anomaly detection, and model evaluation report.</p>
+            <span class="btn btn-outline" style="display:inline-block;padding:0.7rem 1.5rem;">See Analytics →</span>
+        </div>
+    </div>
+
+    <!-- Latest entry preview -->
+    {% if latest_entry %}
+    <div class="card" style="margin-bottom:2rem;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;">
+            <h3>📅 Most Recent Entry</h3>
+            <a href="{{ url_for('past_entries') }}" class="btn btn-outline" style="padding:0.5rem 1rem;font-size:0.9rem;">All Entries →</a>
+        </div>
+        <div style="border-left:3px solid var(--primary-color);padding-left:1.5rem;">
+            <div style="display:flex;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:0.75rem;">
+                <span class="emotion-badge {{ latest_entry.emotion }}">{{ latest_entry.emotion|capitalize }}</span>
+                <span style="color:#666;font-size:0.9rem;">{{ latest_entry.date.strftime('%B %d, %Y at %I:%M %p') }}</span>
+            </div>
+            <p style="line-height:1.8;color:#333;margin-bottom:1rem;">
+                {{ latest_entry.text[:250] }}{% if latest_entry.text|length > 250 %}…{% endif %}
+            </p>
+            <div style="background:rgba(108,99,255,0.05);padding:1rem;border-radius:10px;border-left:3px solid var(--primary-color);">
+                <div style="font-size:0.85rem;font-weight:600;color:var(--primary-color);margin-bottom:0.4rem;">💬 AI Insight:</div>
+                <p style="font-style:italic;color:#555;line-height:1.7;margin:0;">{{ latest_entry.motivation }}</p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.floating-elements { position:absolute; top:0; left:0; right:0; bottom:0; pointer-events:none; }
+.float-elem { position:absolute; font-size:2rem; animation:float 6s ease-in-out infinite; opacity:0.5; }
+@keyframes float { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-18px); } }
+.hover-lift { transition:transform 0.3s ease,box-shadow 0.3s ease; }
+.hover-lift:hover { transform:translateY(-8px); box-shadow:0 14px 40px rgba(0,0,0,0.14); }
+</style>
+
+<script>
+const quotes = [
+    "Every day is a new beginning. Take a deep breath and start again.",
+    "Your mental health is a priority. Your happiness is an essential.",
+    "Progress, not perfection, is what we should be asking of ourselves.",
+    "Be gentle with yourself. You are doing the best you can.",
+    "Small steps in the right direction can turn out to be the biggest step of your life.",
+    "Healing is not linear. Be patient with yourself.",
+    "You are stronger than you think.",
+    "Your feelings are valid. You are allowed to feel whatever you feel.",
+];
+function newQuote() {
+    const el = document.getElementById('quote-text');
+    el.style.opacity = 0;
+    setTimeout(() => {
+        el.textContent = '"' + quotes[Math.floor(Math.random() * quotes.length)] + '"';
+        el.style.opacity = 1;
+    }, 250);
+    el.style.transition = 'opacity 0.25s';
+}
+function updateGreeting() {
+    const h = new Date().getHours();
+    const g = h < 12 ? 'Good Morning' : h < 17 ? 'Good Afternoon' : 'Good Evening';
+    document.getElementById('greeting').textContent = `${g}, {{ user.username }}! 👋`;
+}
+updateGreeting();
+</script>
+{% endblock %}

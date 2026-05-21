@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Reflectra - AI Mental Health Journal{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Enhanced Navigation -->
+    <nav class="main-nav">
+        <div class="nav-container">
+            <!-- Logo & Brand -->
+            <div class="nav-brand">
+                <a href="{{ url_for('index') }}" class="brand-link">
+                    <!-- <div class="brand-icon">💝</div> -->
+                    <!-- <span class="brand-text">Reflectra</span> -->
+                </a>
+            </div>
+
+            <!-- Mobile Menu Toggle -->
+            <button class="mobile-menu-toggle" onclick="toggleMobileMenu()" aria-label="Toggle menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+
+            <!-- Navigation Links -->
+            <ul class="navbar" id="navbar">
+                <li><a href="{{ url_for('index') }}" {% if request.endpoint == 'index' %}class="active"{% endif %}>
+                    <span class="nav-icon">🏠</span>
+                    <span class="nav-text">Home</span>
+                </a></li>
+                
+                {% if session.user_id %}
+                    <li><a href="{{ url_for('dashboard') }}" {% if request.endpoint == 'dashboard' %}class="active"{% endif %}>
+                        <span class="nav-icon">📊</span>
+                        <span class="nav-text">Dashboard</span>
+                    </a></li>
+                    
+                    <li><a href="{{ url_for('journal') }}" {% if request.endpoint == 'journal' %}class="active"{% endif %}>
+                        <span class="nav-icon">📝</span>
+                        <span class="nav-text">Journal</span>
+                        <span class="nav-badge">New</span>
+                    </a></li>
+                    
+                    <li class="nav-dropdown">
+                        <a href="#" class="dropdown-trigger" onclick="toggleDropdown(event)">
+                            <span class="nav-icon">📚</span>
+                            <span class="nav-text">My Data</span>
+                            <span class="dropdown-arrow">▼</span>
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a href="{{ url_for('past_entries') }}">
+                                <span class="dropdown-icon">📖</span>
+                                Entry History
+                            </a></li>
+                            <li><a href="{{ url_for('analytics') }}">
+                                <span class="dropdown-icon">📈</span>
+                                Analytics
+                            </a></li>
+                            <li><a href="#" onclick="exportData(event)">
+                                <span class="dropdown-icon">💾</span>
+                                Export Data
+                            </a></li>
+                        </ul>
+                    </li>
+                    
+                    <!-- User Profile Dropdown -->
+                    <li class="nav-dropdown user-menu">
+                        <a href="#" class="dropdown-trigger" onclick="toggleDropdown(event)">
+                            <!-- <div class="user-avatar">{{ session.username[0]|upper if session.username else 'U' }}</div> -->
+                            <span class="nav-text">{{ session.username|truncate(10) if session.username else 'User' }}</span>
+                            <span class="dropdown-arrow">▼</span>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-right">
+                            <li class="dropdown-header">
+                                <div class="user-info">
+                                    <div class="user-avatar-large">{{ session.username[0]|upper if session.username else 'U' }}</div>
+                                    <div>
+                                        <div class="user-name">{{ session.username }}</div>
+                                        <div class="user-email">View Profile</div>
+                                    </div>
+                                </div>
+                            </li>
+                            <li class="dropdown-divider"></li>
+                            <li><a href="{{ url_for('profile') }}">
+                                <span class="dropdown-icon">👤</span>
+                                Profile Settings
+                            </a></li>
+                            <li><a href="{{ url_for('analytics') }}">
+                                <span class="dropdown-icon">📊</span>
+                                My Statistics
+                            </a></li>
+                            <li><a href="#" onclick="showPreferences(event)">
+                                <span class="dropdown-icon">⚙️</span>
+                                Preferences
+                            </a></li>
+                            <li class="dropdown-divider"></li>
+                            <li><a href="#" onclick="showHelp(event)">
+                                <span class="dropdown-icon">❓</span>
+                                Help & Support
+                            </a></li>
+                            <li class="dropdown-divider"></li>
+                            <li><a href="{{ url_for('logout') }}" class="logout-link">
+                                <span class="dropdown-icon">🚪</span>
+                                Logout
+                            </a></li>
+                        </ul>
+                    </li>
+                {% else %}
+                    <li><a href="{{ url_for('login') }}" class="btn-nav btn-login">
+                        <span class="nav-icon">🔐</span>
+                        <span class="nav-text">Sign In</span>
+                    </a></li>
+                    <li><a href="{{ url_for('register') }}" class="btn-nav btn-primary">
+                        <span class="nav-icon">✨</span>
+                        <span class="nav-text">Get Started</span>
+                    </a></li>
+                {% endif %}
+            </ul>
+
+            <!-- Quick Actions (for logged-in users) -->
+            {% if session.user_id %}
+            <div class="nav-actions">
+                <button class="icon-button" onclick="showSearch()" title="Search" aria-label="Search">
+                    🔍
+                </button>
+                <button class="icon-button" onclick="showNotifications()" title="Notifications" aria-label="Notifications">
+                    🔔
+                    <span class="notification-badge">3</span>
+                </button>
+                <button class="icon-button theme-toggle" onclick="toggleTheme()" title="Toggle Theme" aria-label="Toggle theme">
+                    <span id="theme-icon">🌙</span>
+                </button>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Search Overlay -->
+        <div id="search-overlay" class="search-overlay" style="display: none;">
+            <div class="search-container">
+                <input type="text" id="global-search" placeholder="🔍 Search entries, emotions, themes..." class="search-input" onkeyup="performSearch(this.value)">
+                <button onclick="closeSearch()" class="search-close">✕</button>
+            </div>
+            <div id="search-results" class="search-results"></div>
+        </div>
+
+        <!-- Notifications Panel -->
+        <div id="notifications-panel" class="notifications-panel" style="display: none;">
+            <div class="notifications-header">
+                <h3>Notifications</h3>
+                <button onclick="closeNotifications()">✕</button>
+            </div>
+            <div class="notifications-content">
+                <div class="notification-item unread">
+                    <span class="notification-icon">✨</span>
+                    <div>
+                        <div class="notification-title">Welcome to Reflectra!</div>
+                        <div class="notification-time">Just now</div>
+                    </div>
+                </div>
+                <div class="notification-item">
+                    <span class="notification-icon">📊</span>
+                    <div>
+                        <div class="notification-title">Weekly insights ready</div>
+                        <div class="notification-time">2 hours ago</div>
+                    </div>
+                </div>
+                <div class="notification-item">
+                    <span class="notification-icon">🎯</span>
+                    <div>
+                        <div class="notification-title">Streak milestone reached!</div>
+                        <div class="notification-time">Yesterday</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Flash Messages -->
+    <div class="flash-container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="flash {{ category }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <!-- Main Content -->
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <p>🌸 Reflect. Write. Grow. 🌸</p>
+        <p style="font-size: 0.9rem; margin-top: 0.5rem;">&copy; 2025 Reflectra | Your Emotional Wellness Companion</p>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,41 @@
+# Virtual environments
+venv/
+env/
+.venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# OS files
+.DS_Store
+
+# Environment variables
+.env
+.flaskenv
+
+# Database files
+instance/*.db
+instance/*.sqlite
+instance/*.sqlite3
+*.db
+*.sqlite3
+
+# IDE files
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Pytest / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Build files
+dist/
+build/
+
+# Jupyter
+.ipynb_checkpoints/

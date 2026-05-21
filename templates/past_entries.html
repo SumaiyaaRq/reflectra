@@ -1,0 +1,319 @@
+{% extends "base.html" %}
+{% block title %}History — Reflectra{% endblock %}
+
+{% block content %}
+<div class="fade-in">
+    <!-- Header -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;flex-wrap:wrap;gap:1rem;">
+        <div>
+            <h1>📚 Journal History</h1>
+            <p style="color:#666;margin-top:0.25rem;">Browse and analyse your emotional journey</p>
+        </div>
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+            <button onclick="setView('list')" id="btn-list" class="btn btn-primary" style="padding:0.6rem 1rem;">📋 List</button>
+            <button onclick="setView('grid')" id="btn-grid" class="btn btn-outline" style="padding:0.6rem 1rem;">📊 Grid</button>
+            <button onclick="setView('timeline')" id="btn-timeline" class="btn btn-outline" style="padding:0.6rem 1rem;">⏱ Timeline</button>
+            <a href="{{ url_for('journal') }}" class="btn btn-primary" style="padding:0.6rem 1.5rem;">✍️ New Entry</a>
+        </div>
+    </div>
+
+    <!-- Summary banner -->
+    <div style="background:linear-gradient(135deg,#ec4899,#8b5cf6);color:white;border-radius:16px;
+        padding:1.25rem 2rem;margin-bottom:1.5rem;display:flex;justify-content:space-around;flex-wrap:wrap;gap:1rem;text-align:center;">
+        <div>
+            <div style="font-size:2rem;font-weight:800;">{{ entries|length }}</div>
+            <div style="font-size:0.9rem;opacity:0.9;">Total Entries</div>
+        </div>
+        <div>
+            <div style="font-size:2rem;font-weight:800;">{{ total_words }}</div>
+            <div style="font-size:0.9rem;opacity:0.9;">Words Written</div>
+        </div>
+        <div>
+            <div style="font-size:2rem;font-weight:800;">
+                {{ ((entries|selectattr('sentiment','equalto','Positive')|list|length) / (entries|length) * 100)|round|int if entries else 0 }}%
+            </div>
+            <div style="font-size:0.9rem;opacity:0.9;">Positive Entries</div>
+        </div>
+        <div>
+            <div style="font-size:2rem;font-weight:800;">
+                {{ (total_words / entries|length)|round|int if entries else 0 }}
+            </div>
+            <div style="font-size:0.9rem;opacity:0.9;">Avg Words/Entry</div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card" style="padding:1.25rem;margin-bottom:1.5rem;">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem;margin-bottom:1rem;">
+            <div>
+                <label style="font-size:0.8rem;color:#666;display:block;margin-bottom:0.4rem;">🔍 Search</label>
+                <input type="text" id="search-input" placeholder="Search entries..."
+                    style="width:100%;padding:0.6rem;border-radius:10px;border:2px solid #e0e0e0;font-size:0.9rem;"
+                    oninput="applyFilters()">
+            </div>
+            <div>
+                <label style="font-size:0.8rem;color:#666;display:block;margin-bottom:0.4rem;">😊 Emotion</label>
+                <select id="emotion-filter" onchange="applyFilters()"
+                    style="width:100%;padding:0.6rem;border-radius:10px;border:2px solid #e0e0e0;">
+                    <option value="">All Emotions</option>
+                    {% for em in ['happy','sad','anxious','angry','peaceful','excited','neutral'] %}
+                    <option value="{{ em }}">{{ em|capitalize }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label style="font-size:0.8rem;color:#666;display:block;margin-bottom:0.4rem;">📅 Date Range</label>
+                <select id="date-filter" onchange="applyFilters()"
+                    style="width:100%;padding:0.6rem;border-radius:10px;border:2px solid #e0e0e0;">
+                    <option value="all">All Time</option>
+                    <option value="today">Today</option>
+                    <option value="week">This Week</option>
+                    <option value="month">This Month</option>
+                </select>
+            </div>
+            <div>
+                <label style="font-size:0.8rem;color:#666;display:block;margin-bottom:0.4rem;">📊 Sort</label>
+                <select id="sort-filter" onchange="applyFilters()"
+                    style="width:100%;padding:0.6rem;border-radius:10px;border:2px solid #e0e0e0;">
+                    <option value="newest">Newest First</option>
+                    <option value="oldest">Oldest First</option>
+                    <option value="intensity">Highest Intensity</option>
+                    <option value="longest">Longest Entry</option>
+                </select>
+            </div>
+        </div>
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
+            <button onclick="clearFilters()" class="btn btn-outline" style="padding:0.5rem 1rem;font-size:0.85rem;">🔄 Clear</button>
+            <a href="{{ url_for('api_export') }}" class="btn btn-outline" style="padding:0.5rem 1rem;font-size:0.85rem;">📥 Export CSV</a>
+            <span id="result-count" style="font-size:0.85rem;color:#666;margin-left:0.5rem;"></span>
+        </div>
+    </div>
+
+    {% if entries %}
+    <!-- List View -->
+    <div id="view-list" class="entries-grid">
+        {% for entry in entries %}
+        <div class="entry-card entry-item fade-in"
+            data-emotion="{{ entry.emotion }}"
+            data-text="{{ entry.text|lower|replace('"', '') }}"
+            data-timestamp="{{ entry.date.timestamp()|int }}"
+            data-intensity="{{ entry.intensity }}"
+            data-length="{{ entry.text|length }}"
+            style="animation-delay:{{ loop.index0 * 0.03 }}s;">
+
+            <div class="entry-header">
+                <div class="entry-meta" style="flex:1;flex-wrap:wrap;gap:0.5rem;">
+                    <span class="emotion-badge {{ entry.emotion }}">{{ entry.emotion|capitalize }}</span>
+                    <span class="entry-date">{{ entry.date.strftime('%b %d, %Y · %I:%M %p') }}</span>
+                    <span style="font-size:0.8rem;color:#aaa;">{{ entry.text.split()|length }} words</span>
+                    {% if entry.confidence %}
+                    <span style="font-size:0.8rem;color:#aaa;">Conf: {{ (entry.confidence * 100)|round|int }}%</span>
+                    {% endif %}
+                </div>
+                <div style="display:flex;gap:0.4rem;">
+                    <button onclick="toggleDetails({{ entry.id }})" class="btn btn-outline" style="padding:0.4rem 0.7rem;font-size:0.8rem;" aria-label="Toggle details">
+                        <span id="arrow-{{ entry.id }}">▼</span>
+                    </button>
+                    <button onclick="deleteEntry({{ entry.id }})" class="btn" style="background:#f44336;color:white;padding:0.4rem 0.7rem;font-size:0.8rem;" aria-label="Delete entry">🗑️</button>
+                </div>
+            </div>
+
+            <div class="entry-content">
+                <span id="preview-{{ entry.id }}">
+                    {{ entry.text[:280] }}{% if entry.text|length > 280 %}<span style="color:var(--primary-color);cursor:pointer;" onclick="toggleDetails({{ entry.id }})">… read more</span>{% endif %}
+                </span>
+                <span id="full-{{ entry.id }}" style="display:none;">{{ entry.text }}</span>
+            </div>
+
+            <!-- Quick stats bar -->
+            <div style="display:flex;gap:1.5rem;margin:0.75rem 0;padding:0.6rem 0.9rem;background:rgba(0,0,0,0.02);border-radius:8px;font-size:0.82rem;color:#666;flex-wrap:wrap;">
+                <span>Intensity: <strong>{{ entry.intensity }}/10</strong></span>
+                <span>Sentiment: <strong>{{ entry.sentiment }}</strong></span>
+                <span>Polarity: <strong>{{ '%.3f'|format(entry.polarity) }}</strong></span>
+                <span>ML tier: <strong>{{ entry.ml_tier or 'N/A' }}</strong></span>
+            </div>
+
+            <!-- Expandable details -->
+            <div id="details-{{ entry.id }}" style="display:none;margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid rgba(0,0,0,0.06);">
+                {% if entry.key_themes %}
+                <div style="margin-bottom:0.75rem;">
+                    <strong style="font-size:0.85rem;color:#666;">🏷️ Key Themes:</strong>
+                    <div class="theme-tags" style="margin-top:0.4rem;">
+                        {% for t in entry.key_themes.split(', ') %}
+                        <span class="theme-tag" style="font-size:0.82rem;padding:0.3rem 0.7rem;">#{{ t }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+                <div style="background:linear-gradient(135deg,rgba(108,99,255,0.05),rgba(255,107,157,0.05));padding:0.9rem;border-radius:10px;margin-bottom:0.75rem;">
+                    <strong style="font-size:0.85rem;color:var(--primary-color);">💬 AI Message:</strong>
+                    <p style="font-style:italic;margin-top:0.4rem;line-height:1.7;font-size:0.9rem;">{{ entry.motivation }}</p>
+                </div>
+                {% if entry.suggestion %}
+                <div style="background:rgba(76,175,80,0.05);padding:0.9rem;border-radius:10px;">
+                    <strong style="font-size:0.85rem;color:#4caf50;">🌟 Self-care:</strong>
+                    <p style="margin-top:0.4rem;line-height:1.7;font-size:0.9rem;">{{ entry.suggestion }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Grid View -->
+    <div id="view-grid" style="display:none;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1.25rem;"></div>
+
+    <!-- Timeline View -->
+    <div id="view-timeline" style="display:none;"></div>
+
+    <!-- No results -->
+    <div id="no-results" style="display:none;text-align:center;padding:4rem 2rem;">
+        <div style="font-size:4rem;margin-bottom:1rem;">🔍</div>
+        <h2 style="color:#666;">No Entries Found</h2>
+        <p style="color:#999;margin-bottom:1.5rem;">Try adjusting your filters</p>
+        <button onclick="clearFilters()" class="btn btn-primary">Clear All Filters</button>
+    </div>
+
+    {% else %}
+    <div class="card" style="text-align:center;padding:4rem 2rem;">
+        <div style="font-size:5rem;margin-bottom:1.5rem;">📖</div>
+        <h2 style="color:#666;margin-bottom:1rem;">No Entries Yet</h2>
+        <p style="color:#999;font-size:1.05rem;margin-bottom:2rem;">Your journaling journey starts here!</p>
+        <a href="{{ url_for('journal') }}" class="btn btn-primary" style="padding:1rem 2rem;">Write Your First Entry ✍️</a>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+const EMOJI = { happy:'😊', sad:'😢', anxious:'😰', angry:'😠', peaceful:'😌', excited:'🤩', neutral:'😐' };
+
+function setView(v) {
+    ['list','grid','timeline'].forEach(x => {
+        document.getElementById('view-' + x).style.display = 'none';
+        const btn = document.getElementById('btn-' + x);
+        if (btn) { btn.className = 'btn btn-outline'; }
+    });
+    const el = document.getElementById('view-' + v);
+    el.style.display = v === 'list' ? 'grid' : (v === 'grid' ? 'grid' : 'block');
+    document.getElementById('btn-' + v).className = 'btn btn-primary';
+    if (v === 'grid') buildGrid();
+    if (v === 'timeline') buildTimeline();
+}
+
+function buildGrid() {
+    const c = document.getElementById('view-grid');
+    const items = [...document.querySelectorAll('#view-list .entry-item')].filter(e => e.style.display !== 'none');
+    c.innerHTML = items.map(item => {
+        const em = item.dataset.emotion;
+        const txt = item.querySelector('.entry-content').textContent.trim().substring(0, 120);
+        const date = item.querySelector('.entry-date').textContent;
+        return `<div class="card" style="text-align:center;cursor:pointer;padding:1.5rem;">
+            <div style="font-size:3rem;margin-bottom:0.75rem;">${EMOJI[em] || '😐'}</div>
+            <span class="emotion-badge ${em}" style="font-size:0.82rem;">${em}</span>
+            <p style="color:#666;font-size:0.8rem;margin:0.5rem 0;">${date}</p>
+            <p style="line-height:1.6;font-size:0.9rem;">${txt}…</p>
+        </div>`;
+    }).join('');
+}
+
+function buildTimeline() {
+    const c = document.getElementById('view-timeline');
+    const items = [...document.querySelectorAll('#view-list .entry-item')].filter(e => e.style.display !== 'none');
+    const groups = {};
+    items.forEach(item => {
+        const d = new Date(parseInt(item.dataset.timestamp) * 1000).toLocaleDateString('en-US', {month:'long',day:'numeric',year:'numeric'});
+        groups[d] = groups[d] || [];
+        groups[d].push(item);
+    });
+    c.innerHTML = Object.entries(groups).map(([date, its]) => `
+        <div style="margin-bottom:2.5rem;">
+            <h3 style="color:var(--primary-color);margin-bottom:1rem;padding-bottom:0.5rem;border-bottom:2px solid var(--primary-color);">📅 ${date}</h3>
+            ${its.map((item, i) => {
+                const em = item.dataset.emotion;
+                const txt = item.querySelector('.entry-content').textContent.trim().substring(0, 200);
+                return `<div style="margin-left:2rem;margin-bottom:1.25rem;padding-left:1.5rem;border-left:2px solid rgba(108,99,255,0.3);position:relative;">
+                    <div style="position:absolute;left:-0.6rem;top:0;width:1.2rem;height:1.2rem;background:var(--primary-color);border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-size:0.7rem;">${i+1}</div>
+                    <span class="emotion-badge ${em}" style="font-size:0.8rem;">${em}</span>
+                    <p style="line-height:1.6;color:#555;font-size:0.9rem;margin-top:0.4rem;">${txt}…</p>
+                </div>`;
+            }).join('')}
+        </div>`
+    ).join('');
+}
+
+function toggleDetails(id) {
+    const det = document.getElementById('details-' + id);
+    const prev = document.getElementById('preview-' + id);
+    const full = document.getElementById('full-' + id);
+    const arr = document.getElementById('arrow-' + id);
+    const open = det.style.display === 'none';
+    det.style.display = open ? 'block' : 'none';
+    if (prev) prev.style.display = open ? 'none' : 'inline';
+    if (full) full.style.display = open ? 'inline' : 'none';
+    if (arr) arr.textContent = open ? '▲' : '▼';
+}
+
+function applyFilters() {
+    const search = document.getElementById('search-input').value.toLowerCase();
+    const emotion = document.getElementById('emotion-filter').value;
+    const dateR = document.getElementById('date-filter').value;
+    const sort = document.getElementById('sort-filter').value;
+    const now = Date.now() / 1000;
+    const limits = { today: 86400, week: 604800, month: 2592000 };
+
+    let items = [...document.querySelectorAll('#view-list .entry-item')];
+    let visible = 0;
+
+    items.forEach(item => {
+        const ts = parseInt(item.dataset.timestamp);
+        const age = now - ts;
+        let show = true;
+        if (search && !item.dataset.text.includes(search)) show = false;
+        if (emotion && item.dataset.emotion !== emotion) show = false;
+        if (dateR !== 'all' && limits[dateR] && age > limits[dateR]) show = false;
+        item.style.display = show ? 'block' : 'none';
+        if (show) visible++;
+    });
+
+    // Sort
+    const container = document.getElementById('view-list');
+    const sorted = [...container.querySelectorAll('.entry-item')].filter(e => e.style.display !== 'none');
+    sorted.sort((a, b) => {
+        if (sort === 'newest') return parseInt(b.dataset.timestamp) - parseInt(a.dataset.timestamp);
+        if (sort === 'oldest') return parseInt(a.dataset.timestamp) - parseInt(b.dataset.timestamp);
+        if (sort === 'intensity') return parseInt(b.dataset.intensity) - parseInt(a.dataset.intensity);
+        if (sort === 'longest') return parseInt(b.dataset.length) - parseInt(a.dataset.length);
+        return 0;
+    });
+    sorted.forEach(e => container.appendChild(e));
+
+    document.getElementById('result-count').textContent = `Showing ${visible} of {{ entries|length }} entries`;
+    document.getElementById('no-results').style.display = visible === 0 ? 'block' : 'none';
+}
+
+function clearFilters() {
+    document.getElementById('search-input').value = '';
+    document.getElementById('emotion-filter').value = '';
+    document.getElementById('date-filter').value = 'all';
+    document.getElementById('sort-filter').value = 'newest';
+    applyFilters();
+}
+
+function deleteEntry(id) {
+    if (!confirm('Delete this entry? This cannot be undone.')) return;
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/delete/' + id;
+    const token = document.createElement('input');
+    token.type = 'hidden';
+    token.name = '_csrf_token';
+    token.value = '{{ csrf_token() }}';
+    form.appendChild(token);
+    document.body.appendChild(form);
+    form.submit();
+}
+
+// Init
+applyFilters();
+</script>
+{% endblock %}

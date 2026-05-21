@@ -1,0 +1,445 @@
+{% extends "base.html" %}
+{% block title %}Journal - Reflectra{% endblock %}
+
+{% block content %}
+<div class="fade-in">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;">
+        <div>
+            <h1>📝 My Journal</h1>
+            <p style="color: #666;">Express yourself freely — our AI listens</p>
+        </div>
+        <div style="display: flex; gap: 1rem; align-items: center;">
+            <div style="text-align: center; padding: 0.75rem 1rem; background: rgba(108,99,255,0.1); border-radius: 15px;">
+                <div style="font-size: 0.8rem; color: #666;">Words</div>
+                <div style="font-size: 1.5rem; font-weight: 700; color: var(--primary-color);" id="word-counter">0</div>
+            </div>
+            <button onclick="toggleWritingMode()" class="btn btn-outline" style="padding: 0.75rem 1rem;">
+                🌙 Focus Mode
+            </button>
+        </div>
+    </div>
+
+    <!-- Templates toolbar -->
+    <div class="card" style="padding: 1rem; margin-bottom: 1.5rem;">
+        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: space-between; align-items: center;">
+            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                <button onclick="insertTemplate('gratitude')" class="btn btn-outline" style="padding: 0.5rem 1rem; font-size: 0.85rem;">🙏 Gratitude</button>
+                <button onclick="insertTemplate('reflection')" class="btn btn-outline" style="padding: 0.5rem 1rem; font-size: 0.85rem;">💭 Reflection</button>
+                <button onclick="insertTemplate('goals')" class="btn btn-outline" style="padding: 0.5rem 1rem; font-size: 0.85rem;">🎯 Goals</button>
+                <button onclick="getPrompt()" class="btn btn-outline" style="padding: 0.5rem 1rem; font-size: 0.85rem;">💡 Prompt</button>
+            </div>
+            <div style="display: flex; gap: 0.5rem;">
+                <button onclick="clearEntry()" class="btn" style="background: #f44336; color: white; padding: 0.5rem 1rem; font-size: 0.85rem;">🗑️ Clear</button>
+                <button onclick="saveDraft()" class="btn btn-outline" style="padding: 0.5rem 1rem; font-size: 0.85rem;">💾 Draft</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="journal-form">
+        <div class="card" id="journal-card">
+
+            <!-- Mood pre-selector -->
+            <div style="margin-bottom: 1.5rem;">
+                <label style="font-size: 1rem; font-weight: 600; margin-bottom: 0.75rem; display: block;">😊 Pre-select your mood (optional — AI will verify)</label>
+                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;" id="mood-selector">
+                    {% for m, emoji in [('happy','😊'),('sad','😢'),('anxious','😰'),('angry','😠'),('peaceful','😌'),('excited','🤩'),('neutral','😐')] %}
+                    <button type="button" onclick="selectMood('{{ m }}')" class="mood-btn" data-mood="{{ m }}">{{ emoji }} {{ m|capitalize }}</button>
+                    {% endfor %}
+                </div>
+                <input type="hidden" id="selected-mood" value="">
+            </div>
+
+            <!-- Writing area -->
+            <div class="form-group" style="position: relative;">
+                <label for="journal-text" style="font-size: 1.1rem; font-weight: 600; display: flex; justify-content: space-between; align-items: center;">
+                    <span>✍️ Your Thoughts</span>
+                    <span id="char-count" style="font-size: 0.85rem; color: #666; font-weight: 400;">0 chars · 0 words</span>
+                </label>
+                <textarea id="journal-text" name="journal"
+                    placeholder="Write freely... Your thoughts are safe here. 🌱"
+                    rows="14"
+                    style="margin-top: 1rem; font-size: 1.05rem; line-height: 1.8;"
+                    oninput="updateCounts(); checkAutoSave();"></textarea>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.75rem; padding: 0.75rem; background: rgba(108,99,255,0.05); border-radius: 10px;">
+                    <div style="display: flex; gap: 2rem; font-size: 0.85rem; color: #666;">
+                        <span>📝 <strong id="wc">0</strong> words</span>
+                        <span>⏱️ <strong id="writing-time">0:00</strong></span>
+                        <span>🎯 Goal: <strong id="progress-pct">0%</strong></span>
+                    </div>
+                    <button type="button" onclick="toggleTimer()" class="btn btn-outline" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;" id="timer-btn">
+                        Start Timer ⏰
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tags -->
+            <div class="form-group">
+                <label style="font-size: 1rem; font-weight: 600;">🏷️ Tags (press Enter to add)</label>
+                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem;" id="tags-container"></div>
+                <input type="text" id="tag-input" placeholder="Type a tag and press Enter..."
+                    style="margin-top: 0.5rem; font-size: 0.9rem;" onkeypress="handleTagInput(event)">
+            </div>
+
+            <!-- Analysis mode toggle — A/B comparison feature -->
+            <div style="padding: 1rem; background: rgba(108,99,255,0.04); border-radius: 12px; margin-bottom: 1.5rem;">
+                <label style="font-size: 0.95rem; font-weight: 600; display: block; margin-bottom: 0.75rem;">🤖 Analysis Mode</label>
+                <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+                    <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; padding: 0.5rem 1rem; border: 2px solid #e0e0e0; border-radius: 20px; transition: all 0.2s;" id="mode-ml">
+                        <input type="radio" name="analysis_mode" value="ml" checked onchange="setMode(this)"> ML Model (LR Classifier)
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; padding: 0.5rem 1rem; border: 2px solid #e0e0e0; border-radius: 20px; transition: all 0.2s;" id="mode-tb">
+                        <input type="radio" name="analysis_mode" value="textblob" onchange="setMode(this)"> TextBlob Baseline
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; padding: 0.5rem 1rem; border: 2px solid #e0e0e0; border-radius: 20px; transition: all 0.2s;" id="mode-cmp">
+                        <input type="radio" name="analysis_mode" value="compare" onchange="setMode(this)"> A/B Compare Both
+                    </label>
+                </div>
+                <div id="live-preview" style="margin-top: 0.75rem; font-size: 0.85rem; color: #666; min-height: 1.2rem;"></div>
+            </div>
+
+            <!-- Submit -->
+            <button type="button" onclick="submitJournal()" class="btn btn-primary" id="submit-btn"
+                style="width: 100%; font-size: 1.1rem; padding: 1rem;">
+                <span id="submit-text">Save & Analyse Entry ✨</span>
+                <span id="submit-loader" style="display:none;">🔄 Analysing...</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Analysis Result -->
+    {% if result %}
+    <div class="analysis-result fade-in" style="margin-top: 2rem;">
+        <h3 style="text-align: center; color: var(--primary-color); margin-bottom: 1.5rem;">🎯 AI Analysis Complete</h3>
+
+        <!-- A/B Comparison panel -->
+        {% if result.ab_comparison %}
+        <div class="analysis-section" style="background: linear-gradient(135deg, rgba(108,99,255,0.05), rgba(255,107,157,0.05)); margin-bottom: 1.5rem;">
+            <h4>⚖️ Model Comparison (A/B)</h4>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem;">
+                <div style="padding: 1rem; background: rgba(108,99,255,0.08); border-radius: 12px; text-align: center;">
+                    <div style="font-size: 0.8rem; color: #666; margin-bottom: 0.5rem;">🤖 ML Classifier</div>
+                    <span class="emotion-badge {{ result.ab_comparison.ml.emotion }}">{{ result.ab_comparison.ml.emotion|capitalize }}</span>
+                    <div style="font-size: 0.85rem; color: #666; margin-top: 0.5rem;">Confidence: {{ (result.ab_comparison.ml.confidence * 100)|round|int }}%</div>
+                    <div style="font-size: 0.75rem; color: #999;">Tier: {{ result.ab_comparison.ml.tier }}</div>
+                </div>
+                <div style="padding: 1rem; background: rgba(255,107,157,0.08); border-radius: 12px; text-align: center;">
+                    <div style="font-size: 0.8rem; color: #666; margin-bottom: 0.5rem;">📊 TextBlob Baseline</div>
+                    <span class="emotion-badge {{ result.ab_comparison.textblob.emotion }}">{{ result.ab_comparison.textblob.emotion|capitalize }}</span>
+                    <div style="font-size: 0.85rem; color: #666; margin-top: 0.5rem;">Confidence: {{ (result.ab_comparison.textblob.confidence * 100)|round|int }}%</div>
+                    <div style="font-size: 0.75rem; color: #999;">Tier: {{ result.ab_comparison.textblob.tier }}</div>
+                </div>
+            </div>
+            <div style="text-align: center; margin-top: 1rem; padding: 0.75rem; border-radius: 10px;
+                background: {{ 'rgba(76,175,80,0.1)' if result.ab_comparison.agree else 'rgba(244,67,54,0.1)' }}; color: {{ '#4caf50' if result.ab_comparison.agree else '#f44336' }}; font-weight: 600;">
+                {% if result.ab_comparison.agree %}
+                    ✅ Both models agree on the emotion
+                {% else %}
+                    ⚡ Models disagree — ML classifier takes precedence
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Emotion + intensity -->
+        <div class="analysis-section" style="text-align: center;">
+            <h4>🎭 Detected Emotion</h4>
+            <div style="margin: 1rem 0;">
+                <span class="emotion-badge {{ result.emotion }}" style="font-size: 1.3rem; padding: 1rem 2rem;">
+                    {{ result.emotion|capitalize }}
+                </span>
+                {% if result.confidence %}
+                <div style="font-size: 0.9rem; color: #666; margin-top: 0.5rem;">
+                    ML confidence: <strong>{{ (result.confidence * 100)|round|int }}%</strong>
+                    &nbsp;|&nbsp; Tier: <strong>{{ result.tier }}</strong>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Probability distribution bar -->
+            {% if result.prob_map %}
+            <div style="max-width: 500px; margin: 1rem auto; text-align: left;">
+                <div style="font-size: 0.85rem; color: #666; margin-bottom: 0.5rem;">Probability distribution:</div>
+                {% for emotion, prob in result.prob_map.items()|sort(attribute='1', reverse=True) %}
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.3rem; font-size: 0.8rem;">
+                    <span style="min-width: 70px; color: #666;">{{ emotion }}</span>
+                    <div style="flex: 1; background: #f0f0f0; height: 12px; border-radius: 6px; overflow: hidden;">
+                        <div style="height: 100%; width: {{ (prob * 100)|round|int }}%;
+                            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));"></div>
+                    </div>
+                    <span style="min-width: 35px; color: #666;">{{ (prob * 100)|round|int }}%</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Intensity meter -->
+            <div style="max-width: 400px; margin: 1.5rem auto;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.9rem;">
+                    <span>Low</span>
+                    <span style="font-weight: 600;">Intensity: {{ result.intensity }}/10</span>
+                    <span>High</span>
+                </div>
+                <div style="background: #e0e0e0; height: 28px; border-radius: 14px; overflow: hidden;">
+                    <div style="width: {{ result.intensity * 10 }}%; height: 100%;
+                        background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+                        transition: width 1s ease;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Motivation -->
+        <div class="analysis-section" style="background: linear-gradient(135deg, rgba(108,99,255,0.05), rgba(255,107,157,0.05));">
+            <h4>💬 Personalised Message</h4>
+            <p style="font-size: 1.1rem; line-height: 1.9; font-style: italic; color: #333;">{{ result.motivation }}</p>
+        </div>
+
+        <!-- Self-care -->
+        <div class="analysis-section" style="background: linear-gradient(135deg, rgba(76,175,80,0.05), rgba(33,150,243,0.05));">
+            <h4>🌟 Self-Care Suggestion</h4>
+            <p style="font-size: 1.05rem; line-height: 1.8;">{{ result.suggestion }}</p>
+        </div>
+
+        <!-- Key themes -->
+        <div class="analysis-section">
+            <h4>🔍 Key Themes (RAKE extraction)</h4>
+            <div style="display: flex; flex-wrap: wrap; gap: 0.75rem; justify-content: center; margin-top: 1rem;">
+                {% for theme in result.key_themes_list %}
+                <span class="theme-tag" style="font-size: 1rem; padding: 0.75rem 1.25rem;">#{{ theme }}</span>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Similar entries -->
+        {% if similar_entries %}
+        <div class="analysis-section">
+            <h4>🔗 Similar Past Entries (TF-IDF similarity)</h4>
+            <p style="color: #666; font-size: 0.9rem; margin-bottom: 1rem;">These past entries are semantically related to what you just wrote.</p>
+            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                {% for e in similar_entries %}
+                <div style="padding: 1rem; background: rgba(255,255,255,0.7); border-radius: 12px; border-left: 3px solid var(--primary-color);">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
+                        <span class="emotion-badge {{ e.emotion }}" style="font-size: 0.8rem;">{{ e.emotion|capitalize }}</span>
+                        <span style="font-size: 0.8rem; color: #666;">{{ e.date.strftime('%b %d, %Y') }}</span>
+                    </div>
+                    <p style="color: #555; font-size: 0.9rem; line-height: 1.6; margin: 0;">
+                        {{ e.text[:150] }}{% if e.text|length > 150 %}...{% endif %}
+                    </p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <div style="display: flex; gap: 1rem; justify-content: center; margin-top: 2rem; flex-wrap: wrap;">
+            <a href="{{ url_for('journal') }}" class="btn btn-primary">✍️ New Entry</a>
+            <a href="{{ url_for('past_entries') }}" class="btn btn-outline">📚 All Entries</a>
+            <a href="{{ url_for('analytics') }}" class="btn btn-outline">📈 Analytics</a>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Tips -->
+    <div class="card" style="margin-top: 2rem; background: linear-gradient(135deg, rgba(108,99,255,0.05), rgba(255,107,157,0.05)); border: none;">
+        <h3 style="margin-bottom: 1rem;">💡 Journaling Tips</h3>
+        <div id="tip-display" style="font-size: 1rem; line-height: 1.8; text-align: center; padding: 0.5rem;"></div>
+        <div style="text-align: center; margin-top: 1rem;">
+            <button onclick="nextTip()" class="btn btn-outline" style="padding: 0.5rem 1rem; font-size: 0.9rem;">Next Tip →</button>
+        </div>
+    </div>
+</div>
+
+<!-- Focus Mode -->
+<div id="focus-mode" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:#1a1a1a; z-index:9999; padding:2rem; overflow-y:auto;">
+    <div style="max-width: 800px; margin: 0 auto; color: #fff;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+            <h2 style="color: #fff;">🌙 Focus Mode</h2>
+            <button onclick="toggleWritingMode()" class="btn" style="background: rgba(255,255,255,0.1); color: white;">Exit</button>
+        </div>
+        <textarea id="focus-textarea" placeholder="Write without distractions..."
+            style="width:100%; min-height:60vh; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:#fff; padding:2rem; border-radius:15px; font-size:1.2rem; line-height:2; resize:vertical;"></textarea>
+        <div style="text-align: center; margin-top: 2rem;">
+            <button onclick="saveFocusMode()" class="btn btn-primary" style="padding: 1rem 2rem;">Save & Exit</button>
+        </div>
+    </div>
+</div>
+
+<style>
+.mood-btn { padding: 0.75rem 1.25rem; border: 2px solid #e0e0e0; background: white; border-radius: 25px; cursor: pointer; transition: all 0.3s; font-size: 0.95rem; font-weight: 500; }
+.mood-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+.mood-btn.selected { background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)); color: white; border-color: var(--primary-color); }
+</style>
+
+<script>
+let writingTimer = null, writingSeconds = 0, tags = [];
+
+const templates = {
+    gratitude: `Today I'm grateful for:\n1. \n2. \n3. \n\nThese things matter to me because...`,
+    reflection: `Today's highlights:\n\nWhat went well:\n\nWhat I could improve:\n\nTomorrow I will:`,
+    goals: `My current goals:\n\nShort-term (this week):\n\nLong-term (this month):\n\nMy first action step:`
+};
+
+const tips = [
+    "✍️ Write for at least 5 minutes without stopping — let the thoughts flow.",
+    "🎯 Be specific: instead of 'I was sad', write what triggered the feeling.",
+    "💭 Grammar doesn't matter here. Honesty does.",
+    "🌅 Try journaling at the same time each day to build a habit.",
+    "📊 Check your Analytics page after 10 entries to spot emotional patterns.",
+    "🤔 Ask yourself 'why?' three times to uncover deeper feelings.",
+    "🌟 Celebrate small wins — they compound into big progress.",
+    "🔗 Notice which entries the AI finds similar — they reveal hidden patterns.",
+];
+let tipIdx = 0;
+
+function showTip() {
+    document.getElementById('tip-display').textContent = tips[tipIdx];
+}
+function nextTip() { tipIdx = (tipIdx + 1) % tips.length; showTip(); }
+showTip();
+
+function selectMood(mood) {
+    document.querySelectorAll('.mood-btn').forEach(b => b.classList.remove('selected'));
+    event.target.closest('.mood-btn').classList.add('selected');
+    document.getElementById('selected-mood').value = mood;
+}
+
+function updateCounts() {
+    const text = document.getElementById('journal-text').value;
+    const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+    document.getElementById('char-count').textContent = `${text.length} chars · ${words} words`;
+    document.getElementById('wc').textContent = words;
+    document.getElementById('word-counter').textContent = words;
+    document.getElementById('progress-pct').textContent = Math.min(Math.round(words / 100 * 100), 100) + '%';
+}
+
+function toggleTimer() {
+    const btn = document.getElementById('timer-btn');
+    if (writingTimer) {
+        clearInterval(writingTimer); writingTimer = null;
+        btn.textContent = 'Start Timer ⏰';
+    } else {
+        writingTimer = setInterval(() => {
+            writingSeconds++;
+            const m = Math.floor(writingSeconds / 60), s = writingSeconds % 60;
+            document.getElementById('writing-time').textContent = `${m}:${s.toString().padStart(2, '0')}`;
+        }, 1000);
+        btn.textContent = 'Stop Timer ⏸️';
+    }
+}
+
+function insertTemplate(type) {
+    const ta = document.getElementById('journal-text');
+    if (!ta.value.trim() || confirm('Replace current text with template?')) {
+        ta.value = templates[type]; updateCounts(); ta.focus();
+    }
+}
+
+function getPrompt() {
+    const prompts = [
+        "What made you smile today, even briefly?",
+        "Describe a challenge you're facing and one small step you could take.",
+        "Write about someone who inspires you and why.",
+        "What are you most proud of this week?",
+        "If your feelings today had a colour, what would it be and why?",
+        "What does your body feel like right now — any tension? Warmth?",
+        "Write a letter to your past self from one year ago.",
+        "What's one thing you'd like to let go of today?",
+    ];
+    alert('💡 Writing Prompt:\n\n' + prompts[Math.floor(Math.random() * prompts.length)]);
+}
+
+function handleTagInput(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        const tag = e.target.value.trim();
+        if (tag && !tags.includes(tag)) { tags.push(tag); renderTags(); }
+        e.target.value = '';
+    }
+}
+function renderTags() {
+    document.getElementById('tags-container').innerHTML = tags.map(t =>
+        `<span class="theme-tag">${t} <button onclick="removeTag('${t}')" style="background:none;border:none;cursor:pointer;">×</button></span>`
+    ).join('');
+}
+function removeTag(t) { tags = tags.filter(x => x !== t); renderTags(); }
+
+function clearEntry() {
+    if (confirm('Clear your entry?')) {
+        document.getElementById('journal-text').value = '';
+        tags = []; renderTags();
+        document.getElementById('selected-mood').value = '';
+        document.querySelectorAll('.mood-btn').forEach(b => b.classList.remove('selected'));
+        updateCounts();
+    }
+}
+
+function saveDraft() {
+    localStorage.setItem('reflectra-draft', document.getElementById('journal-text').value);
+    localStorage.setItem('reflectra-tags', JSON.stringify(tags));
+    alert('💾 Draft saved locally!');
+}
+
+let autoSaveTO;
+function checkAutoSave() {
+    clearTimeout(autoSaveTO);
+    autoSaveTO = setTimeout(saveDraft, 30000);
+}
+
+function setMode(radio) {
+    document.querySelectorAll('[id^="mode-"]').forEach(l => l.style.borderColor = '#e0e0e0');
+    radio.closest('label').style.borderColor = 'var(--primary-color)';
+    const modeLabels = { ml: '🤖 Using ML Classifier (Logistic Regression)', textblob: '📊 Using TextBlob baseline (rule-based)', compare: '⚖️ Both models will run and compare results' };
+    document.getElementById('live-preview').textContent = modeLabels[radio.value] || '';
+}
+
+function submitJournal() {
+    const text = document.getElementById('journal-text').value.trim();
+    if (!text) { alert('Please write something before submitting.'); return; }
+    const btn = document.getElementById('submit-btn');
+    document.getElementById('submit-text').style.display = 'none';
+    document.getElementById('submit-loader').style.display = 'inline';
+    btn.disabled = true;
+
+    const mode = document.querySelector('input[name="analysis_mode"]:checked')?.value || 'ml';
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = "{{ url_for('journal') }}";
+
+    [['_csrf_token', '{{ csrf_token() }}'], ['journal', text], ['analysis_mode', mode]].forEach(([name, val]) => {
+        const inp = document.createElement('input');
+        inp.type = 'hidden'; inp.name = name; inp.value = val;
+        form.appendChild(inp);
+    });
+    document.body.appendChild(form);
+    form.submit();
+}
+
+function toggleWritingMode() {
+    const fm = document.getElementById('focus-mode');
+    if (fm.style.display === 'none') {
+        fm.style.display = 'block';
+        document.getElementById('focus-textarea').value = document.getElementById('journal-text').value;
+        document.getElementById('focus-textarea').focus();
+    } else {
+        fm.style.display = 'none';
+    }
+}
+
+function saveFocusMode() {
+    document.getElementById('journal-text').value = document.getElementById('focus-textarea').value;
+    toggleWritingMode(); updateCounts();
+}
+
+window.addEventListener('load', () => {
+    const draft = localStorage.getItem('reflectra-draft');
+    if (draft && !document.getElementById('journal-text').value) {
+        if (confirm('Restore saved draft?')) {
+            document.getElementById('journal-text').value = draft;
+            tags = JSON.parse(localStorage.getItem('reflectra-tags') || '[]');
+            renderTags(); updateCounts();
+        }
+    }
+    {% if result %}localStorage.removeItem('reflectra-draft'); localStorage.removeItem('reflectra-tags');{% endif %}
+});
+updateCounts();
+</script>
+{% endblock %}

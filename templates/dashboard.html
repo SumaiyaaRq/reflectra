@@ -1,0 +1,301 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - Reflectra{% endblock %}
+
+{% block content %}
+<div class="fade-in">
+    <div class="text-center" style="margin-bottom: 3rem;">
+        <h1 id="greeting-header">Welcome, {{ user.username }}! 👋</h1>
+        <p style="font-size: 1.1rem; color: #666;">Your emotional wellness overview</p>
+    </div>
+
+    <!-- Anomaly alert -->
+    {% if anomaly and anomaly.detected %}
+    <div style="background: rgba(244,67,54,0.07); border-left: 4px solid #f44336; border-radius: 0 12px 12px 0; padding: 1rem 1.25rem; margin-bottom: 2rem;">
+        <strong style="color: #f44336;">⚠️ Mood Alert</strong>
+        <p style="margin: 0.4rem 0 0; color: #555;">{{ anomaly.message }} Your baseline is {{ anomaly.baseline }}, recent average is {{ anomaly.recent }}. Consider taking extra care of yourself. 💙</p>
+    </div>
+    {% endif %}
+
+    <!-- Quick Stats -->
+    <div class="dashboard-grid" style="margin-bottom: 3rem;">
+        <div class="stat-card" style="background: linear-gradient(135deg, rgba(108,99,255,0.15), rgba(147,51,234,0.15));">
+            <div class="stat-label">📝 Total Entries</div>
+            <div class="stat-value">{{ total_entries }}</div>
+            <p style="font-size: 0.9rem; color: #666; margin-top: 0.5rem;">
+                {{ 'Keep writing!' if total_entries > 0 else 'Start today' }}
+            </p>
+            <div style="margin-top: 0.5rem;">
+                <div style="background: rgba(0,0,0,0.1); height: 4px; border-radius: 2px; overflow: hidden;">
+                    <div style="width: {{ progress_width }}%; height: 100%; background: var(--primary-color); transition: width 1s ease;"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="stat-card" style="background: linear-gradient(135deg, rgba(59,130,246,0.15), rgba(37,99,235,0.15));">
+            <div class="stat-label">🔥 Streak</div>
+            <div class="stat-value">{{ streak }}</div>
+            <p style="font-size: 0.9rem; color: #666; margin-top: 0.5rem;">Consecutive days</p>
+        </div>
+
+        <div class="stat-card" style="background: linear-gradient(135deg, rgba(236,72,153,0.15), rgba(219,39,119,0.15));">
+            <div class="stat-label">🎭 Recent Mood</div>
+            <div class="stat-value" style="font-size: 1.8rem;">
+                {% if recent_emotion %}
+                    <span class="emotion-badge {{ recent_emotion }}" style="font-size: 0.95rem;">{{ recent_emotion|capitalize }}</span>
+                {% else %}
+                    <span style="font-size: 1.5rem;">😊</span>
+                {% endif %}
+            </div>
+            <p style="font-size: 0.9rem; color: #666; margin-top: 0.5rem;">
+                {{ 'Feeling ' + recent_emotion if recent_emotion else 'No mood logged yet' }}
+            </p>
+        </div>
+
+        <div class="stat-card" style="background: linear-gradient(135deg, rgba(34,197,94,0.15), rgba(22,163,74,0.15));">
+            <div class="stat-label">🌈 Emotions Tracked</div>
+            <div class="stat-value">{{ emotion_stats|length }}</div>
+            <p style="font-size: 0.9rem; color: #666; margin-top: 0.5rem;">Distinct emotions</p>
+            <a href="{{ url_for('analytics') }}" class="btn btn-outline" style="width: 100%; padding: 0.4rem; font-size: 0.8rem; margin-top: 0.5rem; display: block; text-align: center; text-decoration: none;">View Details →</a>
+        </div>
+    </div>
+
+    <!-- Forecast card -->
+    {% if forecast %}
+    <div class="card" style="background: linear-gradient(135deg, rgba(108,99,255,0.07), rgba(255,107,157,0.07)); border: none; margin-bottom: 2rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+            <div>
+                <h3 style="margin-bottom: 0.5rem;">🔮 Mood Forecast</h3>
+                <p style="color: #666; font-size: 0.9rem;">Based on your last 7 entries and weighted recency model</p>
+            </div>
+            <div style="text-align: center;">
+                <span class="emotion-badge {{ forecast.forecast }}" style="font-size: 1.1rem; padding: 0.75rem 1.5rem;">
+                    {{ forecast.forecast|capitalize }}
+                </span>
+                <div style="font-size: 0.85rem; color: #666; margin-top: 0.5rem;">
+                    Trend: <strong>{{ forecast.trend|capitalize }}</strong> &nbsp;|&nbsp; Confidence: <strong>{{ (forecast.confidence * 100)|round|int }}%</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Charts row -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-bottom: 2rem;">
+
+        <!-- Emotion distribution -->
+        <div class="card">
+            <h3 style="margin-bottom: 1.5rem;">🎭 Emotional Spectrum</h3>
+            {% if emotion_stats %}
+                {% set total_em = emotion_stats.values()|sum %}
+                <div style="display: flex; flex-direction: column; gap: 0.75rem;" id="bar-chart">
+                    {% for emotion, count in emotion_stats.items()|sort(attribute='1', reverse=True) %}
+                    <div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.3rem;">
+                            <span class="emotion-badge {{ emotion }}" style="font-size: 0.85rem;">{{ emotion|capitalize }}</span>
+                            <span style="font-weight: 600; font-size: 0.85rem;">{{ count }}</span>
+                        </div>
+                        <div style="background: #f0f0f0; height: 22px; border-radius: 11px; overflow: hidden;">
+                            <div class="chart-bar" style="width: {{ (count / total_em * 100)|round|int }}%; height: 100%;
+                                background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+                                display: flex; align-items: center; justify-content: flex-end; padding-right: 0.5rem;
+                                color: white; font-weight: 600; font-size: 0.8rem; transition: width 1s ease;">
+                                {{ (count / total_em * 100)|round|int }}%
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div style="text-align: center; padding: 2rem;">
+                    <p style="color: #666;">Start journaling to see your emotional patterns!</p>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Weekly mood calendar -->
+        <div class="card">
+            <h3 style="margin-bottom: 1.5rem;">📅 This Week's Mood</h3>
+            <div id="mood-calendar" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.5rem; margin-bottom: 0.75rem;"></div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: #666;">
+                <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent entries -->
+    <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+            <h3>📝 Recent Entries</h3>
+            <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                <input type="text" id="search-entries" placeholder="🔍 Search..."
+                    style="padding: 0.5rem 1rem; border-radius: 20px; border: 2px solid #ddd; font-size: 0.9rem;"
+                    onkeyup="searchEntries()">
+                <select id="filter-emotion" onchange="filterEntries()"
+                    style="padding: 0.5rem 1rem; border-radius: 20px; border: 2px solid #ddd;">
+                    <option value="">All Emotions</option>
+                    {% for em in ['happy','sad','anxious','angry','peaceful','excited','neutral'] %}
+                    <option value="{{ em }}">{{ em|capitalize }}</option>
+                    {% endfor %}
+                </select>
+                <a href="{{ url_for('past_entries') }}" class="btn btn-outline" style="padding: 0.5rem 1rem; font-size: 0.9rem;">View All →</a>
+            </div>
+        </div>
+
+        {% if entries %}
+        <div class="entries-grid" id="entries-container">
+            {% for entry in entries[:5] %}
+            <div class="entry-card entry-item" data-emotion="{{ entry.emotion }}" data-text="{{ entry.text|lower }}">
+                <div class="entry-header">
+                    <div class="entry-meta">
+                        <span class="emotion-badge {{ entry.emotion }}">{{ entry.emotion|capitalize }}</span>
+                        <span class="entry-date">{{ entry.date.strftime('%B %d, %Y') }}</span>
+                        <span style="font-size: 0.8rem; color: #999;">Conf: {{ (entry.confidence * 100)|round|int if entry.confidence else '?' }}%</span>
+                    </div>
+                    <button onclick="toggleEntryDetails({{ entry.id }})" class="btn btn-outline" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;">Details</button>
+                </div>
+                <div class="entry-content">
+                    {{ entry.text[:200] }}{% if entry.text|length > 200 %}...{% endif %}
+                </div>
+                <div id="details-{{ entry.id }}" style="display: none; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(0,0,0,0.1);">
+                    <p style="font-size: 0.9rem; color: #666; margin-bottom: 0.5rem;">
+                        <strong>Intensity:</strong> {{ entry.intensity }}/10 &nbsp;|&nbsp;
+                        <strong>Polarity:</strong> {{ '%.3f'|format(entry.polarity) }} &nbsp;|&nbsp;
+                        <strong>ML Tier:</strong> {{ entry.ml_tier or 'N/A' }}
+                    </p>
+                    {% if entry.key_themes %}
+                    <div style="display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.75rem;">
+                        {% for theme in entry.key_themes.split(', ') %}
+                        <span class="theme-tag" style="font-size: 0.8rem; padding: 0.3rem 0.7rem;">#{{ theme }}</span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    <div class="motivation-quote" style="font-size: 0.9rem;">💬 {{ entry.motivation }}</div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        <div id="no-results" style="display: none; text-align: center; padding: 2rem; color: #666;">No matching entries.</div>
+        {% else %}
+        <div style="text-align: center; padding: 3rem 0;">
+            <p style="font-size: 3rem; margin-bottom: 1rem;">📖</p>
+            <p style="color: #666; font-size: 1.1rem; margin-bottom: 1.5rem;">No entries yet. Start journaling!</p>
+            <a href="{{ url_for('journal') }}" class="btn btn-primary">Write Your First Entry ✍️</a>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Quick Actions -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 2rem;">
+        <a href="{{ url_for('journal') }}" class="card" style="text-decoration: none; text-align: center; background: linear-gradient(135deg, rgba(108,99,255,0.1), rgba(255,107,157,0.1)); border: none;">
+            <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">✍️</div>
+            <h4>New Entry</h4>
+        </a>
+        <a href="{{ url_for('analytics') }}" class="card" style="text-decoration: none; text-align: center; background: linear-gradient(135deg, rgba(59,130,246,0.1), rgba(37,99,235,0.1)); border: none;">
+            <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">📈</div>
+            <h4>Analytics</h4>
+        </a>
+        <a href="{{ url_for('api_export') }}" class="card" style="text-decoration: none; text-align: center; background: linear-gradient(135deg, rgba(34,197,94,0.1), rgba(22,163,74,0.1)); border: none;">
+            <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">📥</div>
+            <h4>Export CSV</h4>
+        </a>
+        <div class="card" style="text-align: center; cursor: pointer; background: linear-gradient(135deg, rgba(236,72,153,0.1), rgba(219,39,119,0.1)); border: none;" onclick="showPromptModal()">
+            <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">💡</div>
+            <h4>Writing Prompt</h4>
+        </div>
+    </div>
+</div>
+
+<!-- Prompt Modal -->
+<div id="prompt-modal" style="display: none; position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(0,0,0,0.5); z-index: 10000; align-items: center; justify-content: center;">
+    <div class="card" style="max-width: 500px; margin: 2rem; animation: fadeIn 0.3s;">
+        <h3 style="margin-bottom: 1rem;">💡 Writing Prompt</h3>
+        <p id="prompt-text" style="font-size: 1.1rem; line-height: 1.8; color: #333; font-style: italic; margin-bottom: 1.5rem;"></p>
+        <div style="display: flex; gap: 1rem;">
+            <button onclick="closePromptModal()" class="btn btn-outline" style="flex: 1;">Close</button>
+            <a href="{{ url_for('journal') }}" class="btn btn-primary" style="flex: 1; text-decoration: none;">Start Writing ✍️</a>
+        </div>
+    </div>
+</div>
+
+<script>
+function updateGreeting() {
+    const h = new Date().getHours();
+    const g = h < 12 ? 'Good Morning' : h < 17 ? 'Good Afternoon' : 'Good Evening';
+    document.getElementById('greeting-header').textContent = `${g}, {{ user.username }}! 👋`;
+}
+updateGreeting();
+
+function generateMoodCalendar() {
+    const cal = document.getElementById('mood-calendar');
+    const moods = ['😊', '😢', '😰', '😠', '😌', '🤩', '😐', '😶'];
+    for (let i = 0; i < 7; i++) {
+        const d = document.createElement('div');
+        d.style.cssText = 'aspect-ratio:1;background:linear-gradient(135deg,#f0f0f0,#e0e0e0);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.4rem;cursor:pointer;transition:transform 0.2s;';
+        d.textContent = moods[Math.floor(Math.random() * moods.length)];
+        d.onclick = () => { d.style.transform = 'scale(1.1)'; setTimeout(() => d.style.transform = 'scale(1)', 200); };
+        cal.appendChild(d);
+    }
+}
+generateMoodCalendar();
+
+function toggleEntryDetails(id) {
+    const el = document.getElementById(`details-${id}`);
+    el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+function searchEntries() {
+    const term = document.getElementById('search-entries').value.toLowerCase();
+    filterAndSearch(term, document.getElementById('filter-emotion').value);
+}
+function filterEntries() {
+    const term = document.getElementById('search-entries').value.toLowerCase();
+    filterAndSearch(term, document.getElementById('filter-emotion').value);
+}
+function filterAndSearch(term, emotion) {
+    let count = 0;
+    document.querySelectorAll('.entry-item').forEach(e => {
+        const match = (!term || e.dataset.text.includes(term)) && (!emotion || e.dataset.emotion === emotion);
+        e.style.display = match ? 'block' : 'none';
+        if (match) count++;
+    });
+    document.getElementById('no-results').style.display = count === 0 ? 'block' : 'none';
+}
+
+const prompts = [
+    "What made you smile today, even briefly?",
+    "Write about a challenge you're facing and one small step forward.",
+    "Describe something you're grateful for right now.",
+    "Write a letter to your future self about today.",
+    "What does your body feel like right now?",
+    "What would make tomorrow better than today?",
+    "Describe the last time you felt truly at peace.",
+    "What's something you need to forgive yourself for?",
+];
+function showPromptModal() {
+    document.getElementById('prompt-text').textContent = prompts[Math.floor(Math.random() * prompts.length)];
+    document.getElementById('prompt-modal').style.display = 'flex';
+}
+function closePromptModal() { document.getElementById('prompt-modal').style.display = 'none'; }
+
+// Animate bars on load
+window.addEventListener('load', () => {
+    document.querySelectorAll('.chart-bar').forEach(bar => {
+        const w = bar.style.width; bar.style.width = '0%';
+        setTimeout(() => bar.style.width = w, 150);
+    });
+    document.querySelectorAll('.stat-value').forEach(stat => {
+        const val = parseInt(stat.textContent);
+        if (!isNaN(val) && val > 0) {
+            stat.textContent = '0';
+            let cur = 0;
+            const inc = Math.ceil(val / 30);
+            const t = setInterval(() => {
+                cur = Math.min(cur + inc, val);
+                stat.textContent = cur;
+                if (cur >= val) clearInterval(t);
+            }, 30);
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+{% block title %}Profile — Reflectra{% endblock %}
+
+{% block content %}
+<div class="fade-in">
+    <!-- Profile header -->
+    <div class="card" style="background:linear-gradient(135deg,rgba(108,99,255,0.1),rgba(255,107,157,0.1));border:none;margin-bottom:2rem;">
+        <div style="display:flex;align-items:center;gap:2rem;flex-wrap:wrap;">
+            <div class="profile-avatar" style="width:100px;height:100px;font-size:2.5rem;flex-shrink:0;">
+                {{ user.username[0]|upper }}
+            </div>
+            <div style="flex:1;">
+                <h1 style="margin-bottom:0.25rem;">{{ user.username }}</h1>
+                <p style="color:#666;margin-bottom:0.75rem;">{{ user.email }}</p>
+                <div style="display:flex;gap:0.75rem;flex-wrap:wrap;">
+                    <span style="padding:0.4rem 0.9rem;background:rgba(255,255,255,0.7);border-radius:20px;font-size:0.85rem;">
+                        📅 Joined {{ user.created_at.strftime('%B %Y') }}
+                    </span>
+                    <span style="padding:0.4rem 0.9rem;background:rgba(255,255,255,0.7);border-radius:20px;font-size:0.85rem;">
+                        ⏱ {{ (now - user.created_at).days }} days active
+                    </span>
+                    <span style="padding:0.4rem 0.9rem;background:rgba(255,255,255,0.7);border-radius:20px;font-size:0.85rem;">
+                        📝 {{ user.entries|length }} entries
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div style="display:flex;gap:0;border-bottom:2px solid #e0e0e0;margin-bottom:2rem;overflow-x:auto;">
+        {% for tab, label in [('profile','👤 Profile'), ('security','🔒 Security'), ('stats','📊 Stats')] %}
+        <button onclick="switchTab('{{ tab }}')" class="tab-btn {% if tab == 'profile' %}active{% endif %}" data-tab="{{ tab }}">{{ label }}</button>
+        {% endfor %}
+    </div>
+
+    <!-- Profile tab -->
+    <div id="tab-profile" class="tab-panel">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:2rem;flex-wrap:wrap;">
+            <div class="card">
+                <h3 style="margin-bottom:1.5rem;">✏️ Edit Profile</h3>
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" value="{{ user.username }}" placeholder="Username">
+                </div>
+                <div class="form-group">
+                    <label>Email Address</label>
+                    <input type="email" value="{{ user.email }}" disabled style="background:#f5f5f5;color:#999;">
+                    <small style="color:#999;font-size:0.8rem;">Email cannot be changed</small>
+                </div>
+                <button onclick="updateProfile()" class="btn btn-primary" style="width:100%;">Save Changes ✅</button>
+            </div>
+            <div class="card">
+                <h3 style="margin-bottom:1.5rem;">🏆 Achievements</h3>
+                <div style="display:flex;flex-direction:column;gap:0.75rem;">
+                    <div style="display:flex;align-items:center;gap:1rem;padding:0.75rem;background:rgba(108,99,255,0.05);border-radius:10px;">
+                        <span style="font-size:2rem;">🎯</span>
+                        <div><div style="font-weight:600;">First Entry</div><div style="font-size:0.85rem;color:#666;">Started the journey</div></div>
+                        {% if user.entries|length >= 1 %}<span style="margin-left:auto;color:#4caf50;">✓</span>{% endif %}
+                    </div>
+                    <div style="display:flex;align-items:center;gap:1rem;padding:0.75rem;background:rgba(236,72,153,0.05);border-radius:10px;{{ '' if user.entries|length >= 10 else 'opacity:0.5;' }}">
+                        <span style="font-size:2rem;">📚</span>
+                        <div><div style="font-weight:600;">Dedicated Writer</div><div style="font-size:0.85rem;color:#666;">10+ entries</div></div>
+                        {% if user.entries|length >= 10 %}<span style="margin-left:auto;color:#4caf50;">✓</span>{% endif %}
+                    </div>
+                    <div style="display:flex;align-items:center;gap:1rem;padding:0.75rem;background:rgba(34,197,94,0.05);border-radius:10px;{{ '' if user.entries|length >= 30 else 'opacity:0.5;' }}">
+                        <span style="font-size:2rem;">🌟</span>
+                        <div><div style="font-weight:600;">Month Master</div><div style="font-size:0.85rem;color:#666;">30+ entries</div></div>
+                        {% if user.entries|length >= 30 %}<span style="margin-left:auto;color:#4caf50;">✓</span>{% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Security tab -->
+    <div id="tab-security" class="tab-panel" style="display:none;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:2rem;flex-wrap:wrap;">
+            <div class="card">
+                <h3 style="margin-bottom:1.5rem;">🔐 Change Password</h3>
+                <div class="form-group">
+                    <label for="current_password">Current Password</label>
+                    <input type="password" id="current_password" placeholder="Enter current password">
+                </div>
+                <div class="form-group">
+                    <label for="new_password">New Password</label>
+                    <input type="password" id="new_password" placeholder="At least 8 characters" oninput="pwStrength(this.value)">
+                    <div id="pw-strength" style="margin-top:0.5rem;"></div>
+                </div>
+                <div class="form-group">
+                    <label for="confirm_password">Confirm New Password</label>
+                    <input type="password" id="confirm_password" placeholder="Re-enter new password">
+                </div>
+                <button onclick="changePassword()" class="btn btn-primary" style="width:100%;">Update Password 🔒</button>
+            </div>
+            <div class="card">
+                <h3 style="margin-bottom:1.5rem;">🛡️ Account Security</h3>
+                <div style="padding:1rem;background:rgba(34,197,94,0.1);border-radius:10px;margin-bottom:1.5rem;">
+                    <div style="font-weight:600;color:#22c55e;">✅ Account Active</div>
+                    <div style="font-size:0.85rem;color:#666;margin-top:0.25rem;">Secured with bcrypt hashing</div>
+                </div>
+                <p style="color:#666;font-size:0.9rem;line-height:1.7;">
+                    Your password is hashed with bcrypt (work factor 12). Passwords are never stored in plain text.
+                    Consider using a unique, strong password you don't use elsewhere.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats tab -->
+    <div id="tab-stats" class="tab-panel" style="display:none;">
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;margin-bottom:2rem;flex-wrap:wrap;">
+            <div class="stat-card">
+                <div class="stat-label">📝 Entries</div>
+                <div class="stat-value">{{ user.entries|length }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">⏱ Days Active</div>
+                <div class="stat-value">{{ (now - user.created_at).days }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">📊 Avg Intensity</div>
+                <div class="stat-value">
+                    {% if user.entries %}{{ (user.entries|map(attribute='intensity')|list|sum / user.entries|length)|round(1) }}{% else %}–{% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="card">
+            <h3 style="margin-bottom:1rem;">🤖 ML Model Info</h3>
+            <p style="color:#666;font-size:0.9rem;line-height:1.8;">
+                Current analysis tier: <strong>Logistic Regression Classifier</strong><br>
+                Features: weighted emotion lexicon (140+ keywords), TextBlob polarity, negation detection, punctuation intensity, text statistics<br>
+                Theme extraction: <strong>RAKE (Rapid Automatic Keyword Extraction)</strong><br>
+                Similarity search: <strong>TF-IDF cosine similarity</strong><br>
+                Mood forecast: <strong>Exponentially weighted recency model</strong>
+            </p>
+            <a href="{{ url_for('api_model_info') }}" class="btn btn-outline" style="display:inline-block;margin-top:1rem;padding:0.6rem 1.2rem;font-size:0.9rem;" target="_blank">
+                View Model JSON →
+            </a>
+        </div>
+    </div>
+
+    <!-- Danger zone -->
+    <div class="card" style="border:2px solid rgba(244,67,54,0.3);margin-top:2rem;">
+        <h3 style="color:#f44336;margin-bottom:0.75rem;">⚠️ Danger Zone</h3>
+        <p style="color:#666;margin-bottom:1.25rem;font-size:0.9rem;">These actions are permanent and cannot be undone.</p>
+        <div style="display:flex;gap:1rem;flex-wrap:wrap;">
+            <a href="{{ url_for('api_export') }}" class="btn btn-outline">📦 Export All Data</a>
+            <button onclick="confirmDeleteAccount()" class="btn btn-danger">💥 Delete Account</button>
+        </div>
+    </div>
+</div>
+
+<style>
+.tab-btn { padding:0.9rem 1.5rem;background:transparent;border:none;border-bottom:3px solid transparent;cursor:pointer;font-weight:500;color:#666;transition:all 0.2s;white-space:nowrap;font-family:'Poppins',sans-serif;font-size:0.95rem; }
+.tab-btn.active { color:var(--primary-color);border-bottom-color:var(--primary-color); }
+.tab-btn:hover { color:var(--primary-color); }
+</style>
+
+<script>
+function switchTab(name) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.style.display = 'none');
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + name).style.display = 'block';
+    document.querySelector(`[data-tab="${name}"]`).classList.add('active');
+}
+
+function updateProfile() {
+    const u = document.getElementById('username').value.trim();
+    if (!u) { alert('Username cannot be empty'); return; }
+    const form = document.createElement('form');
+    form.method = 'POST'; form.action = "{{ url_for('update_profile') }}";
+    const token = document.createElement('input');
+    token.type = 'hidden'; token.name = '_csrf_token'; token.value = '{{ csrf_token() }}';
+    form.appendChild(token);
+    const inp = document.createElement('input');
+    inp.type = 'hidden'; inp.name = 'username'; inp.value = u;
+    form.appendChild(inp); document.body.appendChild(form); form.submit();
+}
+
+function pwStrength(pw) {
+    let s = 0;
+    if (pw.length >= 8) s++; if (/[a-z]/.test(pw) && /[A-Z]/.test(pw)) s++;
+    if (/[0-9]/.test(pw)) s++; if (/[^a-zA-Z0-9]/.test(pw)) s++;
+    const cols = ['#ef4444','#f59e0b','#eab308','#22c55e'];
+    const labs = ['Weak','Fair','Good','Strong'];
+    document.getElementById('pw-strength').innerHTML = `
+        <div style="display:flex;gap:3px;margin-bottom:3px;">
+            ${[...Array(4)].map((_,i) => `<div style="flex:1;height:4px;background:${i<s?cols[s-1]:'#e0e0e0'};border-radius:2px;"></div>`).join('')}
+        </div><span style="font-size:0.8rem;color:${cols[s-1]||'#666'}">${s>0?labs[s-1]:''}</span>`;
+}
+
+function changePassword() {
+    const cur = document.getElementById('current_password').value;
+    const nw = document.getElementById('new_password').value;
+    const conf = document.getElementById('confirm_password').value;
+    if (!cur||!nw||!conf) { alert('Fill in all fields'); return; }
+    if (nw.length < 8) { alert('Password must be at least 8 characters'); return; }
+    if (nw !== conf) { alert('New passwords do not match'); return; }
+    const form = document.createElement('form');
+    form.method = 'POST'; form.action = "{{ url_for('change_password') }}";
+    [['_csrf_token','{{ csrf_token() }}'],['current_password',cur],['new_password',nw],['confirm_password',conf]].forEach(([n,v]) => {
+        const i = document.createElement('input'); i.type='hidden'; i.name=n; i.value=v; form.appendChild(i);
+    });
+    document.body.appendChild(form); form.submit();
+}
+
+function confirmDeleteAccount() {
+    if (confirm('Delete your account? This will permanently remove ALL your data.')) {
+        if (prompt('Type DELETE to confirm:') === 'DELETE') {
+            alert('Account deletion coming in next release. Your data is safe for now.');
+        }
+    }
+}
+</script>
+{% endblock %}

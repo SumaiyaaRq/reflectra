@@ -1,0 +1,42 @@
+{
+  "accuracy": 0.771,
+  "macro_f1": 0.79,
+  "per_class": {
+    "angry": {
+      "precision": 1.0,
+      "recall": 0.6,
+      "f1": 0.75
+    },
+    "anxious": {
+      "precision": 1.0,
+      "recall": 0.8,
+      "f1": 0.889
+    },
+    "excited": {
+      "precision": 0.8,
+      "recall": 0.8,
+      "f1": 0.8
+    },
+    "happy": {
+      "precision": 1.0,
+      "recall": 0.6,
+      "f1": 0.75
+    },
+    "neutral": {
+      "precision": 0.417,
+      "recall": 1.0,
+      "f1": 0.588
+    },
+    "peaceful": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "sad": {
+      "precision": 1.0,
+      "recall": 0.6,
+      "f1": 0.75
+    }
+  },
+  "n_samples": 35
+}
