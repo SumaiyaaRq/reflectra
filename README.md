@@ -252,6 +252,3 @@ Built by Sumaiyaa
 
 ---
 
-# ⭐ If You Like This Project
-
-Consider giving the repository a star on GitHub to support the project.
