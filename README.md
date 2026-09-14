@@ -243,12 +243,5 @@ It is **not** intended to provide medical, psychological, or mental health diagn
 
 ---
 
-# 👩‍💻 Author
 
-Built by Sumaiyaa
-
-- Passionate about AI, NLP, and intelligent user-focused systems
-- Interested in ML Engineering, Generative AI, and AI-powered product development
-
----
 
