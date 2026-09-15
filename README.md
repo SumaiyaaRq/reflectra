@@ -235,13 +235,6 @@ Reflectra is designed with user privacy in mind:
 
 ---
 
-# 📌 Disclaimer
-
-Reflectra is an emotional journaling and reflection platform designed for self-awareness and productivity purposes.
-
-It is **not** intended to provide medical, psychological, or mental health diagnoses.
-
----
 
 
 
